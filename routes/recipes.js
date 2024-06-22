@@ -39,20 +39,21 @@ router.get('/randomRecipe', async (req, res) => {
     }
 });
 
-// router.get('/findByIngredients', async (req, res) => {
-//     const ingredients = req.query.ingredients;
-//     try {
-//         const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredients}&apiKey=${SPOONACULAR_API_KEY}`);
-//         const recipes = await response.json();
-//         res.json(recipes);
-//     } catch (err) {
-//         res.status(500).json({ message: err.message });
-//     }
-// });
+// Not used in the project
+router.get('/findByIngredients', async (req, res) => {
+    const ingredients = req.query.ingredients;
+    try {
+        const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredients}&apiKey=${SPOONACULAR_API_KEY}`);
+        const recipes = await response.json();
+        res.json(recipes);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 router.get('/complexSearchByIngredients', async (req, res) => {
     const { ingredients, diet, intolerances } = req.query;
-    const URL = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=${ingredients}`;
+    let URL = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=${ingredients}`;
     if (diet) {
         URL += `&diet=${diet}`;
     }
@@ -167,5 +168,6 @@ router.get('/wineDescription/:wine', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+
 
 module.exports = router;
