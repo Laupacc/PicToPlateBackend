@@ -72,7 +72,7 @@ router.get('/complexSearchByIngredients', async (req, res) => {
 router.get('/recipeInformation/:id', async (req, res) => {
     const id = req.params.id;
     try {
-        const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?apiKey=${SPOONACULAR_API_KEY}`);
+        const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?addWinePairing=true&apiKey=${SPOONACULAR_API_KEY}`);
         const recipe = await response.json();
         res.json(recipe);
     } catch (err) {
