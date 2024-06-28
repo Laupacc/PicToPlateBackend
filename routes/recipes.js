@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 
 const fetch = require('node-fetch');
-const { checkBody } = require('../modules/checkBody');
 require('../models/connection');
 
 const Recipe = require('../models/recipes');
