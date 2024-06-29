@@ -103,7 +103,7 @@ router.get('/similarRecipes/:id', async (req, res) => {
 router.get('/autocompleteIngredients', async (req, res) => {
     const query = req.query.query;
     try {
-        const response = await fetch(`https://api.spoonacular.com/food/ingredients/autocomplete?query=${query}&number=5&apiKey=${SPOONACULAR_API_KEY}`);
+        const response = await fetch(`https://api.spoonacular.com/food/ingredients/autocomplete?query=${query}&number=10&apiKey=${SPOONACULAR_API_KEY}`);
         const ingredients = await response.json();
         res.json(ingredients);
     } catch (err) {

@@ -53,7 +53,7 @@ router.post('/login', async (req, res) => {
     const user = await User
       .findOne({ username: username });
     if (!user) {
-      res.status(401).json({ result: false, message: 'User not found' });
+      res.status(401).json({ result: false, message: 'Username or password incorrect' });
     }
     else {
       if (bcrypt.compareSync(password, user.password)) {
@@ -200,26 +200,29 @@ router.delete('/removeIngredient/:token', async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    // Expecting an array of names of ingredients to remove
-    const { ingredients } = req.body;
-    let removedIngredients = [];
-    for (let name of ingredients) {
-      const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
-      if (!ingredientExists) {
-        return res.status(400).json({ message: `Ingredient ${name} does not exist` });
-      }
 
-      user.ingredients = user.ingredients.filter(ingredient => ingredient.name !== name);
-      removedIngredients.push({ name: name });
+    const { ingredient } = req.body;
+
+    if (!ingredient) {
+      return res.status(400).json({ message: 'No ingredient provided' });
     }
+    user.ingredients = user.ingredients.filter(ing => ing.name !== ingredient);
     await user.save();
-    // Respond with only the removed ingredients to avoid sending back the entire collection
-    res.json({ ingredients: removedIngredients });
+    res.json({ ingredients: user.ingredients });
+
   } catch (err) {
+    console.error(`Error during ingredient removal: ${err.message}`);
     res.status(500).json({ message: err.message });
   }
-}
-);
+});
+
+
+
+
+
+
+
+
 
 // Fetch user's ingredients from database
 router.get('/fetchIngredients/:token', async (req, res) => {
