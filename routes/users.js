@@ -8,8 +8,6 @@ const bcrypt = require('bcrypt');
 const uniqid = require('uniqid');
 
 const User = require('../models/users');
-const Recipe = require('../models/recipes');
-const Ingredients = require('../models/ingredients');
 
 // Route to sign up a new user
 router.post('/signup', async (req, res) => {
@@ -90,38 +88,6 @@ router.get('/userInformation/:token', async (req, res) => {
 }
 );
 
-// Route to update user information
-router.put('/updateUser/:token', async (req, res) => {
-  try {
-    const token = req.params.token;
-    const user = await User
-      .findOne
-      ({ token: token });
-    if (!user) {
-      res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const { username, password } = req.body;
-
-    if (username.length < 6) {
-      res.status(400).json({ message: 'Username must be at least 6 characters long' });
-    }
-    else if (password.length < 6) {
-      res.status(400).json({ message: 'Password must be at least 6 characters long' });
-    }
-    else {
-      const salt = bcrypt.genSaltSync(10);
-      const hash = bcrypt.hashSync(password, salt);
-      user.username = username;
-      user.password = hash;
-      await user.save();
-      res.json({ username: user.username, token: user.token });
-    }
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-);
 
 // Route to add a recipe to the user's favorites
 router.post('/addFavourite/:recipeId/:token', async (req, res) => {
@@ -199,8 +165,77 @@ router.get('/fetchFavourites/:token', async (req, res) => {
 }
 );
 
+// Add ingredients to the user's collection
+router.post('/addIngredient/:token', async (req, res) => {
+  try {
+    const token = req.params.token;
+    const user = await User.findOne({ token: token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    // Expecting an array of names of ingredients to add
+    const { ingredients } = req.body;
+    let addedIngredients = [];
+    for (let name of ingredients) {
+      const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
 
+      if (!ingredientExists) {
+        user.ingredients.push({ name: name });
+        addedIngredients.push({ name: name });
+      }
+    }
+    await user.save();
+    // Respond with only the added ingredients to avoid sending back the entire collection
+    res.json({ ingredients: addedIngredients });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
+// Remove ingredient from user's collection
+router.delete('/removeIngredient/:token', async (req, res) => {
+  try {
+    const token = req.params.token;
+    const user = await User.findOne({ token: token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    // Expecting an array of names of ingredients to remove
+    const { ingredients } = req.body;
+    let removedIngredients = [];
+    for (let name of ingredients) {
+      const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
+      if (!ingredientExists) {
+        return res.status(400).json({ message: `Ingredient ${name} does not exist` });
+      }
+
+      user.ingredients = user.ingredients.filter(ingredient => ingredient.name !== name);
+      removedIngredients.push({ name: name });
+    }
+    await user.save();
+    // Respond with only the removed ingredients to avoid sending back the entire collection
+    res.json({ ingredients: removedIngredients });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+);
+
+// Fetch user's ingredients from database
+router.get('/fetchIngredients/:token', async (req, res) => {
+  try {
+    const token = req.params.token;
+    const user = await User.findOne({ token: token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const ingredients = user.ingredients;
+    res.json({ ingredients });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+);
 
 
 

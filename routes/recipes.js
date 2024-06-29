@@ -4,8 +4,6 @@ var router = express.Router();
 const fetch = require('node-fetch');
 require('../models/connection');
 
-const Recipe = require('../models/recipes');
-
 const SPOONACULAR_API_KEY = process.env.SPOONACULAR_API_KEY;
 
 router.get('/trivia', async (req, res) => {
@@ -105,7 +103,7 @@ router.get('/similarRecipes/:id', async (req, res) => {
 router.get('/autocompleteIngredients', async (req, res) => {
     const query = req.query.query;
     try {
-        const response = await fetch(`https://api.spoonacular.com/food/ingredients/autocomplete?query=${query}&apiKey=${SPOONACULAR_API_KEY}`);
+        const response = await fetch(`https://api.spoonacular.com/food/ingredients/autocomplete?query=${query}&number=5&apiKey=${SPOONACULAR_API_KEY}`);
         const ingredients = await response.json();
         res.json(ingredients);
     } catch (err) {

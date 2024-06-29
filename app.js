@@ -12,6 +12,8 @@ var usersRouter = require('./routes/users');
 var recipesRouter = require('./routes/recipes');
 
 var app = express();
+const cors = require('cors');
+app.use(cors());
 
 app.use(logger('dev'));
 app.use(express.json());
