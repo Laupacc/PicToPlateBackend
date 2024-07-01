@@ -49,13 +49,16 @@ router.get('/findByIngredients', async (req, res) => {
 });
 
 router.get('/complexSearchByIngredients', async (req, res) => {
-    const { ingredients, diet, intolerances } = req.query;
+    const { ingredients, diet, intolerances, maxReadyTime } = req.query;
     let URL = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=${ingredients}`;
     if (diet) {
         URL += `&diet=${diet}`;
     }
     if (intolerances) {
         URL += `&intolerances=${intolerances}`;
+    }
+    if (maxReadyTime) {
+        URL += `&maxReadyTime=${maxReadyTime}`;
     }
     try {
         const response = await fetch(URL);
