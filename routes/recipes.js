@@ -166,5 +166,16 @@ router.get('/wineDescription/:wine', async (req, res) => {
     }
 });
 
+router.get('/convertAmount', async (req, res) => {
+    const { ingredientName, sourceAmount, sourceUnit, targetUnit } = req.query;
+    try {
+        const response = await fetch(`https://api.spoonacular.com/recipes/convert?ingredientName=${ingredientName}&sourceAmount=${sourceAmount}&sourceUnit=${sourceUnit}&targetUnit=${targetUnit}&apiKey=${SPOONACULAR_API_KEY}`);
+        const convertedAmount = await response.json();
+        res.json(convertedAmount);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 
 module.exports = router;
