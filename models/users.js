@@ -13,10 +13,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    ingredients: {
-        type: Array,
-        required: false
-    },
+    ingredients: [{
+        name: {
+            type: String,
+            required: true
+        },
+        dateAdded: {
+            type: Date,
+            default: Date.now,
+            required: true
+        }
+    }],
     favourites: {
         type: Array,
         required: false

@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const uniqid = require('uniqid');
 
 const User = require('../models/users');
+const Ingredient = require('../models/ingredients');
 
 // Route to sign up a new user
 router.post('/signup', async (req, res) => {
@@ -80,7 +81,8 @@ router.get('/userInformation/:token', async (req, res) => {
       res.status(401).json({ message: 'Unauthorized' });
     }
     else {
-      res.json({ username: user.username, token: user.token });
+      console.log(`User found: ${user}`);
+      res.json(user)
     }
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -166,31 +168,69 @@ router.get('/fetchFavourites/:token', async (req, res) => {
 );
 
 // Add ingredients to the user's collection
+// router.post('/addIngredient/:token', async (req, res) => {
+//   try {
+//     const token = req.params.token;
+//     const user = await User.findOne({ token: token });
+//     if (!user) {
+//       return res.status(401).json({ message: 'Unauthorized' });
+//     }
+
+//     const { ingredients } = req.body;
+//     let addedIngredients = [];
+//     for (let name of ingredients) {
+//       const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
+
+//       if (!ingredientExists) {
+//         user.ingredients.push({ name: name });
+//         addedIngredients.push({ name: name });
+//       }
+//     }
+//     await user.save();
+//     // Respond with only the added ingredients to avoid sending back the entire collection
+//     res.json({ ingredients: addedIngredients });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
 router.post('/addIngredient/:token', async (req, res) => {
   try {
     const token = req.params.token;
     const user = await User.findOne({ token: token });
+
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    // Expecting an array of names of ingredients to add
+
     const { ingredients } = req.body;
+
     let addedIngredients = [];
-    for (let name of ingredients) {
-      const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
+
+    for (let ingredient of ingredients) {
+      const { name } = ingredient;
+
+      const ingredientExists = user.ingredients.some(item => item.name === name);
 
       if (!ingredientExists) {
-        user.ingredients.push({ name: name });
-        addedIngredients.push({ name: name });
+        const newIngredient = {
+          name: name,
+          dateAdded: new Date()
+        };
+        user.ingredients.push(newIngredient);
+        addedIngredients.push(newIngredient);
       }
     }
+
     await user.save();
+
     // Respond with only the added ingredients to avoid sending back the entire collection
     res.json({ ingredients: addedIngredients });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 // Remove ingredient from user's collection
 router.delete('/removeIngredient/:token', async (req, res) => {
@@ -215,13 +255,6 @@ router.delete('/removeIngredient/:token', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-
-
-
-
-
-
 
 
 // Fetch user's ingredients from database
