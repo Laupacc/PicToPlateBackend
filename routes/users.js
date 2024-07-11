@@ -246,7 +246,10 @@ router.delete('/removeIngredient/:token', async (req, res) => {
     if (!ingredient) {
       return res.status(400).json({ message: 'No ingredient provided' });
     }
-    user.ingredients = user.ingredients.filter(ing => ing.name !== ingredient);
+    // user.ingredients = user.ingredients.filter(ing => ing.name !== ingredient);
+    // await user.save();
+    // res.json({ ingredients: user.ingredients });
+    user.ingredients = user.ingredients.filter(ing => !ingredient.includes(ing.name));
     await user.save();
     res.json({ ingredients: user.ingredients });
 
@@ -272,9 +275,6 @@ router.get('/fetchIngredients/:token', async (req, res) => {
   }
 }
 );
-
-
-
 
 
 module.exports = router;

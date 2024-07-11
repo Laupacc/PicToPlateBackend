@@ -6,6 +6,7 @@ require('../models/connection');
 
 const SPOONACULAR_API_KEY = process.env.SPOONACULAR_API_KEY;
 
+// Not used in the project
 router.get('/trivia', async (req, res) => {
     try {
         const response = await fetch(`https://api.spoonacular.com/food/trivia/random?apiKey=${SPOONACULAR_API_KEY}`);
@@ -16,6 +17,7 @@ router.get('/trivia', async (req, res) => {
     }
 });
 
+// Not used in the project
 router.get('/joke', async (req, res) => {
     try {
         const response = await fetch(`https://api.spoonacular.com/food/jokes/random?apiKey=${SPOONACULAR_API_KEY}`);
@@ -91,7 +93,7 @@ router.get('/analyzedInstructions/:id', async (req, res) => {
     }
 });
 
-
+// Not used in the project
 router.get('/similarRecipes/:id', async (req, res) => {
     const id = req.params.id;
     try {
@@ -136,6 +138,8 @@ router.get('/ingredientSubstitutes/:id', async (req, res) => {
     }
 });
 
+
+// Not used in the project
 router.get('/menuItemsInfo/:id', async (req, res) => {
     const id = req.params.id;
     try {
@@ -158,6 +162,7 @@ router.get('/winePairing/:food', async (req, res) => {
     }
 });
 
+// Not used in the project
 router.get('/wineDescription/:wine', async (req, res) => {
     const wine = req.params.wine;
     try {
