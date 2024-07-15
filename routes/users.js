@@ -70,6 +70,52 @@ router.post('/login', async (req, res) => {
 }
 );
 
+
+// Route to update the user's username
+router.put('/updateUsername', async (req, res) => {
+  try {
+    const { token, newUsername } = req.body;
+    if (newUsername.length < 6) {
+      return res.status(400).json({ message: 'Username must be at least 6 characters long' });
+    }
+    const user = await User.findOne({ token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const existingUser = await User.findOne({ username: newUsername });
+    if (existingUser) {
+      return res.status(400).json({ message: 'This username already exists' });
+    }
+    user.username = newUsername;
+    await user.save();
+    res.json({ message: 'Username updated successfully', username: newUsername });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// Route to update the user's password
+router.put('/updatePassword', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+    const user = await User.findOne({ token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(newPassword, salt);
+    user.password = hash;
+    await user.save();
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Route to get user information
 router.get('/userInformation/:token', async (req, res) => {
   try {
