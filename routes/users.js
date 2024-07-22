@@ -6,14 +6,15 @@ require('../models/connection');
 const uid2 = require('uid2');
 const bcrypt = require('bcrypt');
 const uniqid = require('uniqid');
+const nodemailer = require('nodemailer');
 
 const User = require('../models/users');
-const Ingredient = require('../models/ingredients');
+
 
 // Route to sign up a new user
 router.post('/signup', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
     if (username.length < 6) {
       res.status(400).json({ message: 'Username must be at least 6 characters long' });
     }
@@ -32,6 +33,7 @@ router.post('/signup', async (req, res) => {
       const token = uid2(64);
       const newUser = new User({
         username: username,
+        email: email,
         password: hash,
         token: token,
         ingredients: [],
@@ -135,6 +137,72 @@ router.get('/userInformation/:token', async (req, res) => {
   }
 }
 );
+
+
+// Route if user forgets password, send email with nodemailer
+router.post('/forgotPassword', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      res.status(400).json({ message: 'This email does not exist' });
+    }
+    else {
+      const newPassword = uniqid();
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(newPassword, salt);
+      user.password = hash;
+      await user.save();
+
+      require('dotenv').config();
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: process.env.EMAIL, pass: process.env.PASSWORD },
+
+      });
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: email,
+        subject: 'Your new password',
+        text: `Your new password is: ${newPassword}`
+      };
+      transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+          console.log(error);
+          res.status(500).json({ message: 'An error occurred while sending the email' });
+        } else {
+          console.log('Email sent: ' + info.response);
+          res.json({ message: 'Email sent successfully' });
+        }
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+);
+
+// Add avatar to user's profile
+router.put('/updateAvatar/:token', async (req, res) => {
+  try {
+    const token = req.params.token;
+    const avatar = req.body.avatar;
+    const user = await User.findOne({ token: token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    if (!avatar) {
+      return res.status(400).json({ message: 'Avatar not provided' });
+    }
+    user.avatar = avatar;
+    await user.save();
+    res.json({ message: 'Avatar added successfully', avatar: avatar });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 
 // Route to add a recipe to the user's favorites
@@ -321,6 +389,22 @@ router.get('/fetchIngredients/:token', async (req, res) => {
   }
 }
 );
+
+
+// Route to delete user's account
+router.delete('/deleteAccount', async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findOne({ token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    await User.deleteOne({ token });
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 
 module.exports = router;
