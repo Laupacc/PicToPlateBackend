@@ -118,6 +118,29 @@ router.put('/updatePassword', async (req, res) => {
   }
 });
 
+// Route to update the user's email
+router.put('/updateEmail', async (req, res) => {
+  try {
+    const { token, newEmail } = req.body;
+    const user = await User.findOne({ token });
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const existingUser = await User.findOne({ email: newEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'This email already exists' });
+    }
+    user.email = newEmail;
+    await user.save();
+    res.json({ message: 'Email updated successfully', email: newEmail });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message
+    });
+  }
+});
+
+
 // Route to get user information
 router.get('/userInformation/:token', async (req, res) => {
   try {
