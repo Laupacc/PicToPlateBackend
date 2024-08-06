@@ -7,6 +7,8 @@ const uid2 = require('uid2');
 const bcrypt = require('bcrypt');
 const uniqid = require('uniqid');
 const nodemailer = require('nodemailer');
+const moment = require('moment');
+
 
 const User = require('../models/users');
 
