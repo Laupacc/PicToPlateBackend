@@ -11,6 +11,7 @@ const moment = require('moment');
 
 
 const User = require('../models/users');
+const Recipe = require('../models/recipes');
 
 
 // Route to sign up a new user
@@ -20,29 +21,35 @@ router.post('/signup', async (req, res) => {
     if (username.length < 6) {
       res.status(400).json({ message: 'Username must be at least 6 characters long' });
     }
-    else if (password.length < 6) {
+    if (password.length < 6) {
       res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
-    const user = await User
-      .findOne({ username: username });
-    if (user) {
-      res.status(400).json({ message: 'This username already exists' });
+    // Check if the username or email already exists
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      if (existingUser.username === username) {
+        return res.status(400).json({ message: 'This username already exists' });
+      }
+      if (existingUser.email === email) {
+        return res.status(400).json({ message: 'This email already exists' });
+      }
     }
+
     else {
       const salt = bcrypt.genSaltSync(10);
       const hash = bcrypt.hashSync(password, salt);
       const token = uid2(64);
       const newUser = new User({
-        username: username,
-        email: email,
+        username,
+        email,
         password: hash,
-        token: token,
+        token,
         ingredients: [],
         favourites: [],
       });
       await newUser.save();
-      res.json({ username: username, token: token });
+      res.json({ username, token });
     }
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -65,7 +72,7 @@ router.post('/login', async (req, res) => {
         res.json({ result: true, username: user.username, token: user.token });
       }
       else {
-        res.status(401).json({ result: false, message: 'Unauthorized' });
+        res.status(401).json({ result: false, message: 'There seems to be an issue with your username or password' });
       }
     }
   } catch (err) {
@@ -73,7 +80,6 @@ router.post('/login', async (req, res) => {
   }
 }
 );
-
 
 // Route to update the user's username
 router.put('/updateUsername', async (req, res) => {
@@ -84,7 +90,7 @@ router.put('/updateUsername', async (req, res) => {
     }
     const user = await User.findOne({ token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     const existingUser = await User.findOne({ username: newUsername });
     if (existingUser) {
@@ -98,7 +104,6 @@ router.put('/updateUsername', async (req, res) => {
   }
 });
 
-
 // Route to update the user's password
 router.put('/updatePassword', async (req, res) => {
   try {
@@ -108,7 +113,7 @@ router.put('/updatePassword', async (req, res) => {
     }
     const user = await User.findOne({ token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(newPassword, salt);
@@ -126,7 +131,7 @@ router.put('/updateEmail', async (req, res) => {
     const { token, newEmail } = req.body;
     const user = await User.findOne({ token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     const existingUser = await User.findOne({ email: newEmail });
     if (existingUser) {
@@ -142,16 +147,13 @@ router.put('/updateEmail', async (req, res) => {
   }
 });
 
-
 // Route to get user information
 router.get('/userInformation/:token', async (req, res) => {
   try {
     const token = req.params.token;
-    const user = await User
-      .findOne
-      ({ token: token });
+    const user = await User.findOne({ token: token }).populate('favourites');
     if (!user) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'User not found' });
     }
     else {
       console.log(`User found: ${user}`);
@@ -162,7 +164,6 @@ router.get('/userInformation/:token', async (req, res) => {
   }
 }
 );
-
 
 // Route if user forgets password, send email with nodemailer
 router.post('/forgotPassword', async (req, res) => {
@@ -210,13 +211,13 @@ router.post('/forgotPassword', async (req, res) => {
 );
 
 // Add avatar to user's profile
-router.put('/updateAvatar/:token', async (req, res) => {
+router.post('/addAvatar/:token', async (req, res) => {
   try {
     const token = req.params.token;
     const avatar = req.body.avatar;
     const user = await User.findOne({ token: token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     if (!avatar) {
       return res.status(400).json({ message: 'Avatar not provided' });
@@ -229,30 +230,71 @@ router.put('/updateAvatar/:token', async (req, res) => {
   }
 });
 
+//Add newly loaded recipe to the Recipe collection
+router.post('/addRecipeToCollection', async (req, res) => {
+  try {
+    const recipeData = req.body.recipe;
+    let recipe = await Recipe.findOne({ id: recipeData.id });
+    if (!recipe) {
+      recipe = new Recipe({
+        id: recipeData.id,
+        title: recipeData.title,
+        additionalData: recipeData
+      });
+      await recipe.save();
+      console.log(`Recipe ${recipeData.id} saved to the database`);
+    } else {
+      console.log(`Recipe ${recipeData.id} already exists in the database`);
+    }
+    res.json({ message: 'Recipe successfully added or already in the database ' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Route to add a recipe to the user's favorites
-router.post('/addFavourite/:recipeId/:token', async (req, res) => {
+router.post('/addFavourite/:token', async (req, res) => {
   try {
-    const { recipeId, token } = req.params;
-    console.log(`Adding recipe ${recipeId} to favorites for token ${token}`);
+    const { token } = req.params;
+    const recipeData = req.body.recipe;
+    console.log(`Adding recipe ${recipeData.id} to favorites for token ${token}`);
 
     // Find the user by token
     const user = await User.findOne({ token: token });
     if (!user) {
       console.log('User not found');
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    let recipe = await Recipe.findOne({ id: recipeData.id });
+
+    if (!recipe) {
+
+      recipe = new Recipe({
+        id: recipeData.id,
+        title: recipeData.title,
+        additionalData: recipeData
+      });
+      await recipe.save();
+      console.log(`Recipe ${recipeData.id} saved to the database`);
+    } else {
+      console.log(`Recipe ${recipeData.id} already exists in the database`);
     }
 
     // Check if the recipe is already in the user's favourites
-    if (user.favourites.includes(recipeId)) {
+    if (user.favourites.includes(recipe._id)) {
       console.log('Recipe is already in favourites');
       return res.status(400).json({ message: 'Recipe is already in favourites' });
     }
 
-    // Add the recipe to the user's favourites
-    user.favourites.push(recipeId);
+    // Add the recipe's ObjectId to the user's favourites
+    user.favourites.push(recipe._id);
     await user.save();
-    console.log(`Recipe ${recipeId} added to favourites`);
+
+    // Populate the user's favourites with the recipe data
+    await user.populate('favourites');
+
+    console.log(`Recipe ${recipeData.id} added to favourites`);
     res.json({ favourites: user.favourites });
   } catch (err) {
     console.error('Error adding recipe to favourites:', err.message);
@@ -260,78 +302,69 @@ router.post('/addFavourite/:recipeId/:token', async (req, res) => {
   }
 });
 
-// Route to remove a recipe from the user's favorites
-router.delete('/removeFavourite/:recipeId/:token', async (req, res) => {
+// // Route to remove a recipe from the user's favorites
+router.delete('/removeFavourite/:token/:recipeId', async (req, res) => {
   try {
-    const { recipeId, token } = req.params;
-    console.log(`Removing recipe ${recipeId} from favorites for token ${token}`);
+    const { token, recipeId } = req.params;
 
+    console.log(`Removing recipe ${recipeId} from favourites for token ${token}`);
+
+    // Find the user by token
     const user = await User.findOne({ token: token });
     if (!user) {
       console.log('User not found');
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Check if the recipe exists
+    const recipe = await Recipe.findOne({ id: recipeId });
+    if (!recipe) {
+      console.log(`Recipe ${recipeId} not found in the database`);
+      return res.status(400).json({ message: 'Recipe not found in the database' });
     }
 
     // Check if the recipe is in the user's favourites
-    if (!user.favourites.includes(recipeId)) {
+    if (!user.favourites.includes(recipe._id)) {
       console.log('Recipe is not in favourites');
       return res.status(400).json({ message: 'Recipe is not in favourites' });
     }
 
-    // Remove the recipe from the user's favourites
-    user.favourites = user.favourites.filter(favourite => favourite !== recipeId);
+    // Remove the recipe's ObjectId from the user's favourites
+    user.favourites = user.favourites.filter(favourite => !favourite.equals(recipe._id));
     await user.save();
+
     console.log(`Recipe ${recipeId} removed from favourites`);
     res.json({ favourites: user.favourites });
   } catch (err) {
     console.error('Error removing recipe from favourites:', err.message);
     res.status(500).json({ message: err.message });
   }
-}
-);
+});
 
 // fetch user's favourites
 router.get('/fetchFavourites/:token', async (req, res) => {
   try {
-    const token = req.params.token;
-    const user = await User.findOne({ token: token });
+    const { token } = req.params;
+
+    console.log(`Fetching favourites for user with token ${token}`);
+
+    // Find the user by token
+    const user = await User.findOne({ token: token }).populate('favourites');
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      console.log('User not found');
+      return res.status(401).json({ message: 'User not found' });
     }
-    const favourites = user.favourites;
+
+    // Populate the favourites with recipe details
+    const favourites = await Recipe.find({ _id: { $in: user.favourites } });
+
+    console.log('Fetched favourites:', favourites);
     res.json({ favourites });
   } catch (err) {
+    console.error('Error fetching favourites:', err.message);
     res.status(500).json({ message: err.message });
   }
-}
-);
-
-// Add ingredients to the user's collection
-// router.post('/addIngredient/:token', async (req, res) => {
-//   try {
-//     const token = req.params.token;
-//     const user = await User.findOne({ token: token });
-//     if (!user) {
-//       return res.status(401).json({ message: 'Unauthorized' });
-//     }
-
-//     const { ingredients } = req.body;
-//     let addedIngredients = [];
-//     for (let name of ingredients) {
-//       const ingredientExists = user.ingredients.some(ingredient => ingredient.name === name);
-
-//       if (!ingredientExists) {
-//         user.ingredients.push({ name: name });
-//         addedIngredients.push({ name: name });
-//       }
-//     }
-//     await user.save();
-//     // Respond with only the added ingredients to avoid sending back the entire collection
-//     res.json({ ingredients: addedIngredients });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// });
+});
 
 router.post('/addIngredient/:token', async (req, res) => {
   try {
@@ -339,7 +372,7 @@ router.post('/addIngredient/:token', async (req, res) => {
     const user = await User.findOne({ token: token });
 
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const { ingredients } = req.body;
@@ -370,14 +403,13 @@ router.post('/addIngredient/:token', async (req, res) => {
   }
 });
 
-
 // Remove ingredient from user's collection
 router.delete('/removeIngredient/:token', async (req, res) => {
   try {
     const token = req.params.token;
     const user = await User.findOne({ token: token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'UnUser not found' });
     }
 
     const { ingredient } = req.body;
@@ -398,14 +430,13 @@ router.delete('/removeIngredient/:token', async (req, res) => {
   }
 });
 
-
 // Fetch user's ingredients from database
 router.get('/fetchIngredients/:token', async (req, res) => {
   try {
     const token = req.params.token;
     const user = await User.findOne({ token: token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     const ingredients = user.ingredients;
     res.json({ ingredients });
@@ -415,6 +446,15 @@ router.get('/fetchIngredients/:token', async (req, res) => {
 }
 );
 
+// Route to fetch all recipes from the database
+router.get('/fetchAllRecipes', async (req, res) => {
+  try {
+    const recipes = await Recipe.find();
+    res.json({ recipes });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Route to delete user's account
 router.delete('/deleteAccount', async (req, res) => {
@@ -422,7 +462,7 @@ router.delete('/deleteAccount', async (req, res) => {
     const { token } = req.body;
     const user = await User.findOne({ token });
     if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'User not found' });
     }
     await User.deleteOne({ token });
     res.json({ message: 'Account deleted successfully' });

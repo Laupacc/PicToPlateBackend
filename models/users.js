@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    avatar: {
+        type: String,
+        required: false
+    },
     ingredients: [{
         name: {
             type: String,
@@ -29,10 +33,10 @@ const userSchema = new mongoose.Schema({
             required: true
         }
     }],
-    favourites: {
-        type: Array,
-        required: false
-    }
+    favourites: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe'
+    }]
 });
 
 const User = mongoose.model('users', userSchema);
