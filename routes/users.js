@@ -47,9 +47,11 @@ router.post('/signup', async (req, res) => {
         token,
         ingredients: [],
         favourites: [],
+        avatar,
       });
       await newUser.save();
       res.json({ username, token });
+      console.log(`User ${username} signed up successfully`);
     }
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -70,6 +72,7 @@ router.post('/login', async (req, res) => {
     else {
       if (bcrypt.compareSync(password, user.password)) {
         res.json({ result: true, username: user.username, token: user.token });
+        console.log(`User ${user.username} logged in successfully`);
       }
       else {
         res.status(401).json({ result: false, message: 'There seems to be an issue with your username or password' });
@@ -85,9 +88,7 @@ router.post('/login', async (req, res) => {
 router.put('/updateUsername', async (req, res) => {
   try {
     const { token, newUsername } = req.body;
-    if (newUsername.length < 6) {
-      return res.status(400).json({ message: 'Username must be at least 6 characters long' });
-    }
+
     const user = await User.findOne({ token });
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -108,9 +109,7 @@ router.put('/updateUsername', async (req, res) => {
 router.put('/updatePassword', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
-    }
+
     const user = await User.findOne({ token });
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -156,7 +155,7 @@ router.get('/userInformation/:token', async (req, res) => {
       res.status(401).json({ message: 'User not found' });
     }
     else {
-      console.log(`User found: ${user}`);
+      console.log(`User found: ${user.username}`);
       res.json(user)
     }
   } catch (err) {
@@ -246,7 +245,7 @@ router.post('/addRecipeToCollection', async (req, res) => {
     } else {
       console.log(`Recipe ${recipeData.id} already exists in the database`);
     }
-    res.json({ message: 'Recipe successfully added or already in the database ' });
+    res.json({ message: `Recipe ${recipeData.id} successfully added or already in the database` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -257,7 +256,11 @@ router.post('/addFavourite/:token', async (req, res) => {
   try {
     const { token } = req.params;
     const recipeData = req.body.recipe;
-    console.log(`Adding recipe ${recipeData.id} to favorites for token ${token}`);
+
+    if (!recipeData) {
+      console.log('No recipe data provided');
+      return res.status(400).json({ message: 'No recipe data provided' });
+    }
 
     // Find the user by token
     const user = await User.findOne({ token: token });
@@ -266,10 +269,11 @@ router.post('/addFavourite/:token', async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Find the recipe by id in the database
     let recipe = await Recipe.findOne({ id: recipeData.id });
 
+    //If recipe does not exist in the database, add it
     if (!recipe) {
-
       recipe = new Recipe({
         id: recipeData.id,
         title: recipeData.title,
@@ -277,8 +281,6 @@ router.post('/addFavourite/:token', async (req, res) => {
       });
       await recipe.save();
       console.log(`Recipe ${recipeData.id} saved to the database`);
-    } else {
-      console.log(`Recipe ${recipeData.id} already exists in the database`);
     }
 
     // Check if the recipe is already in the user's favourites
@@ -287,7 +289,7 @@ router.post('/addFavourite/:token', async (req, res) => {
       return res.status(400).json({ message: 'Recipe is already in favourites' });
     }
 
-    // Add the recipe's ObjectId to the user's favourites
+    // If not add the recipe's ObjectId to the user's favourites
     user.favourites.push(recipe._id);
     await user.save();
 
@@ -358,7 +360,7 @@ router.get('/fetchFavourites/:token', async (req, res) => {
     // Populate the favourites with recipe details
     const favourites = await Recipe.find({ _id: { $in: user.favourites } });
 
-    console.log('Fetched favourites:', favourites);
+    console.log('Fetched favourites:', favourites.map(favourite => favourite.id));
     res.json({ favourites });
   } catch (err) {
     console.error('Error fetching favourites:', err.message);
@@ -389,14 +391,16 @@ router.post('/addIngredient/:token', async (req, res) => {
           name: name,
           dateAdded: new Date()
         };
+        // Add the new ingredient to the user's collection
         user.ingredients.push(newIngredient);
+        // Add the new ingredient to the list of added ingredients
         addedIngredients.push(newIngredient);
       }
     }
 
     await user.save();
 
-    // Respond with only the added ingredients to avoid sending back the entire collection
+    // Respond with the added ingredients
     res.json({ ingredients: addedIngredients });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -409,7 +413,7 @@ router.delete('/removeIngredient/:token', async (req, res) => {
     const token = req.params.token;
     const user = await User.findOne({ token: token });
     if (!user) {
-      return res.status(401).json({ message: 'UnUser not found' });
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const { ingredient } = req.body;
@@ -417,12 +421,12 @@ router.delete('/removeIngredient/:token', async (req, res) => {
     if (!ingredient) {
       return res.status(400).json({ message: 'No ingredient provided' });
     }
-    // user.ingredients = user.ingredients.filter(ing => ing.name !== ingredient);
-    // await user.save();
-    // res.json({ ingredients: user.ingredients });
+
+    // Remove the ingredient from the user's collection
     user.ingredients = user.ingredients.filter(ing => !ingredient.includes(ing.name));
     await user.save();
-    res.json({ ingredients: user.ingredients });
+    res.json({ ingredients: `${ingredient} removed successfully` });
+    console.log(`${ingredient} removed successfully`);
 
   } catch (err) {
     console.error(`Error during ingredient removal: ${err.message}`);
