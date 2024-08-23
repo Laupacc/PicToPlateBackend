@@ -9,7 +9,7 @@ const PAT = process.env.PAT;
 const MODEL_ID = process.env.MODEL_ID;
 const MODEL_VERSION_ID = process.env.MODEL_VERSION_ID;
 
-
+// Route to classify an image using Clarifai API (Object Detection)
 router.post('/classifyImage', async (req, res) => {
     const { imageBase64 } = req.body;
 

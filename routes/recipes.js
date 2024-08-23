@@ -141,7 +141,6 @@ router.get('/ingredientSubstitutes/:id', async (req, res) => {
     }
 });
 
-
 // Not used in the project
 router.get('/menuItemsInfo/:id', async (req, res) => {
     const id = req.params.id;

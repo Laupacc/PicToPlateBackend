@@ -1,13 +1,11 @@
 var express = require('express');
 var router = express.Router();
 
-const fetch = require('node-fetch');
 require('../models/connection');
 const uid2 = require('uid2');
 const bcrypt = require('bcrypt');
 const uniqid = require('uniqid');
 const nodemailer = require('nodemailer');
-const moment = require('moment');
 
 
 const User = require('../models/users');
@@ -47,7 +45,7 @@ router.post('/signup', async (req, res) => {
         token,
         ingredients: [],
         favourites: [],
-        avatar,
+        avatar: ''
       });
       await newUser.save();
       res.json({ username, token });
@@ -229,11 +227,13 @@ router.post('/addAvatar/:token', async (req, res) => {
   }
 });
 
-//Add newly loaded recipe to the Recipe collection
+// Add newly loaded recipe to the Recipe collection
 router.post('/addRecipeToCollection', async (req, res) => {
   try {
     const recipeData = req.body.recipe;
+    // Check if the recipe already exists in the database
     let recipe = await Recipe.findOne({ id: recipeData.id });
+    // If the recipe does not exist, save it to the database
     if (!recipe) {
       recipe = new Recipe({
         id: recipeData.id,
@@ -243,59 +243,57 @@ router.post('/addRecipeToCollection', async (req, res) => {
       await recipe.save();
       console.log(`Recipe ${recipeData.id} saved to the database`);
     } else {
+      // If the recipe already exists, log it
       console.log(`Recipe ${recipeData.id} already exists in the database`);
     }
-    res.json({ message: `Recipe ${recipeData.id} successfully added or already in the database` });
+    res.json({ message: `Recipe ${recipeData.id} successfully added to the database` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Route to add a recipe to the user's favorites
+// Route to add a recipe to the user's favourites
 router.post('/addFavourite/:token', async (req, res) => {
   try {
     const { token } = req.params;
     const recipeData = req.body.recipe;
 
     if (!recipeData) {
-      console.log('No recipe data provided');
       return res.status(400).json({ message: 'No recipe data provided' });
     }
 
-    // Find the user by token
     const user = await User.findOne({ token: token });
     if (!user) {
-      console.log('User not found');
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // Find the recipe by id in the database
-    let recipe = await Recipe.findOne({ id: recipeData.id });
+    let recipe;
 
-    //If recipe does not exist in the database, add it
-    if (!recipe) {
+    if (recipeData.analyzedInstructions) {
+      // If the full recipe data is provided, save it
       recipe = new Recipe({
         id: recipeData.id,
         title: recipeData.title,
-        additionalData: recipeData
+        additionalData: recipeData,
       });
       await recipe.save();
       console.log(`Recipe ${recipeData.id} saved to the database`);
+    } else {
+      // If only the ID is provided, retrieve the existing recipe
+      recipe = await Recipe.findOne({ id: recipeData.id });
+      if (!recipe) {
+        return res.status(400).json({ message: 'Recipe not found in the database' });
+      }
     }
 
-    // Check if the recipe is already in the user's favourites
     if (user.favourites.includes(recipe._id)) {
-      console.log('Recipe is already in favourites');
       return res.status(400).json({ message: 'Recipe is already in favourites' });
     }
 
-    // If not add the recipe's ObjectId to the user's favourites
     user.favourites.push(recipe._id);
     await user.save();
 
-    // Populate the user's favourites with the recipe data
     await user.populate('favourites');
-
     console.log(`Recipe ${recipeData.id} added to favourites`);
     res.json({ favourites: user.favourites });
   } catch (err) {
@@ -304,7 +302,24 @@ router.post('/addFavourite/:token', async (req, res) => {
   }
 });
 
-// // Route to remove a recipe from the user's favorites
+// Route to check if a recipe exists in the database
+router.get('/checkExistence/:recipeId', async (req, res) => {
+  try {
+    const { recipeId } = req.params;
+    const recipe = await Recipe.findOne({ id: recipeId });
+
+    if (recipe) {
+      return res.json({ exists: true });
+    } else {
+      return res.json({ exists: false });
+    }
+  } catch (err) {
+    console.error('Error checking recipe existence:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Route to remove a recipe from the user's favorites
 router.delete('/removeFavourite/:token/:recipeId', async (req, res) => {
   try {
     const { token, recipeId } = req.params;
@@ -368,6 +383,7 @@ router.get('/fetchFavourites/:token', async (req, res) => {
   }
 });
 
+// Add ingredient to user's collection
 router.post('/addIngredient/:token', async (req, res) => {
   try {
     const token = req.params.token;
@@ -450,7 +466,7 @@ router.get('/fetchIngredients/:token', async (req, res) => {
 }
 );
 
-// Route to fetch all recipes from the database
+// Route to fetch all recipes from the database, not used in the app
 router.get('/fetchAllRecipes', async (req, res) => {
   try {
     const recipes = await Recipe.find();
@@ -460,11 +476,31 @@ router.get('/fetchAllRecipes', async (req, res) => {
   }
 });
 
+// Route to fetch a recipe by id from database to display on the recipe page
+router.get('/fetchRecipe/:recipeId', async (req, res) => {
+  try {
+    const recipeId = req.params.recipeId;
+
+    const recipe = await Recipe.findOne({ id: recipeId });
+    console.log(`Fetching recipe ${recipeId}`);
+
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not in database' });
+    }
+    console.log("Recipe found")
+    res.json(recipe);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Route to delete user's account
-router.delete('/deleteAccount', async (req, res) => {
+router.delete('/deleteAccount/:token', async (req, res) => {
   try {
     const { token } = req.body;
     const user = await User.findOne({ token });
+    console.log(`Deleting account for user ${user.username}`);
+
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
@@ -474,6 +510,5 @@ router.delete('/deleteAccount', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
 
 module.exports = router;
