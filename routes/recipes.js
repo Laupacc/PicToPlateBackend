@@ -50,9 +50,19 @@ router.get('/findByIngredients', async (req, res) => {
     }
 });
 
-router.get('/complexSearchByIngredients', async (req, res) => {
-    const { ingredients, diet, intolerances, maxReadyTime, number, offset } = req.query;
-    let URL = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&includeIngredients=${ingredients}&number=${number}&ranking=1`;
+// Search recipes by ingredients or cuisine type with optional filters
+router.get('/complexSearchByIngredientsOrCuisine', async (req, res) => {
+    const { ingredients, cuisine, diet, intolerances, maxReadyTime, number, offset } = req.query;
+
+    let URL = `https://api.spoonacular.com/recipes/complexSearch?apiKey=${SPOONACULAR_API_KEY}&number=${number}&ranking=1`;
+
+    if (ingredients) {
+        URL += `&includeIngredients=${ingredients}`;
+    }
+    if (cuisine) {
+        URL += `&cuisine=${cuisine}`;
+    }
+
     if (diet) {
         URL += `&diet=${diet}`;
     }
@@ -65,8 +75,13 @@ router.get('/complexSearchByIngredients', async (req, res) => {
     if (offset) {
         URL += `&offset=${offset}`;
     }
+
     try {
         const response = await fetch(URL);
+        if (!response.ok) {
+            throw new Error('Failed to fetch recipes from API');
+        }
+
         const recipes = await response.json();
         res.json(recipes);
     } catch (err) {
