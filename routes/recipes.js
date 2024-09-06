@@ -111,11 +111,11 @@ router.get('/analyzedInstructions/:id', async (req, res) => {
     }
 });
 
-// Not used in the project
 router.get('/similarRecipes/:id', async (req, res) => {
     const id = req.params.id;
+    const number = req.query.number
     try {
-        const response = await fetch(`https://api.spoonacular.com/recipes/${id}/similar?apiKey=${SPOONACULAR_API_KEY}`);
+        const response = await fetch(`https://api.spoonacular.com/recipes/${id}/similar?apiKey=${SPOONACULAR_API_KEY}&number=${number}`);
         const recipes = await response.json();
         res.json(recipes);
     } catch (err) {
