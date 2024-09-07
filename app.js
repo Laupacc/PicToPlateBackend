@@ -28,7 +28,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Rate limiter middleware
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: 100, // limit each IP to 100 requests per windowMs
     message: 'Too many requests from this user, please try again later.'
 });
